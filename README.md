@@ -33,3 +33,7 @@ Create a `.env` file with your Azure OpenAI credentials:
 AZURE_API_KEY=your_api_key
 AZURE_API_BASE=your_base_url
 AZURE_API_VERSION=your_api_version
+
+## Architecture
+
+![alt text](image-1.png)
