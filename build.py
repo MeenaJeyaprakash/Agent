@@ -36,10 +36,17 @@ def get_llm_config():
 llm_config = get_llm_config()
 
 # Define Repo Cloner Agent
-def clone_repo(repo_url, clone_path=None):
+def clone_repo(repo_url, branch=None):
+    """
+    Clone a specific branch of a Git repository
+    Args:
+        repo_url (str): URL of the git repository
+        branch (str): Name of the branch to clone
+    """
     # Extract repo name from URL
     repo_name = os.path.splitext(os.path.basename(urlparse(repo_url).path))[0]
-    target_path = clone_path if clone_path else os.path.join(".", repo_name)
+    target_path = os.path.join(".", repo_name)
+    
     if os.path.exists(target_path):
         print(f"Repository {repo_name} already exists. Deleting and recloning...")
         try:
@@ -52,20 +59,26 @@ def clone_repo(repo_url, clone_path=None):
                         os.chmod(os.path.join(root, dir), 0o777)
                     for file in files:
                         os.chmod(os.path.join(root, file), 0o777)
-                # Try again
                 shutil.rmtree(target_path)
             except:
                 try:
-                    # If still not able to delete, try with subprocess on windows
                     subprocess.run(["attrib", "-R", target_path + "\\*.*", "/S", "/D"], shell=True)
                     subprocess.run(["rmdir", "/s", "/q", target_path], shell=True)
                 except:
                     print(f"Error: Could not delete directory {target_path}. Please delete it manually.")
+                    return None
     
-    print(f"Cloning repository {repo_name} from {repo_url}...")
-    git.Repo.clone_from(repo_url, target_path)
-    print(f"Repository {repo_name} cloned successfully!")
-    return target_path
+    print(f"Cloning repository {repo_name} from {repo_url}" + (f" (branch: {branch})" if branch else ""))
+    try:
+        if branch:
+            repo = git.Repo.clone_from(repo_url, target_path, branch=branch)
+        else:
+            repo = git.Repo.clone_from(repo_url, target_path)
+        print(f"Repository {repo_name} cloned successfully!")
+        return target_path
+    except git.GitCommandError as e:
+        print(f"Failed to clone repository: {e}")
+        return None
 
 repo_cloner = ConversableAgent(
     name="RepoCloner",
@@ -203,8 +216,10 @@ code_builder = ConversableAgent(
 
 # Execution Workflow
 def main():
-    repo_url = "https://github.com/MeenaJeyaprakash/Agent.git"
-    cloned_path = repo_cloner.function_map["clone_repo"](repo_url)
+    repo_url = input("Enter the GitHub repository URL (e.g., https://github.com/username/repo.git): ")
+    branch = input("Enter the branch name (press Enter for default branch): ").strip() or None
+    
+    cloned_path = repo_cloner.function_map["clone_repo"](repo_url, branch)
     
     if cloned_path:
         # Find build files first
